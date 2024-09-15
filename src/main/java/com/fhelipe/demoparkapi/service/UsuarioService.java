@@ -1,6 +1,9 @@
 package com.fhelipe.demoparkapi.service;
 
 import com.fhelipe.demoparkapi.entity.Usuario;
+import com.fhelipe.demoparkapi.exception.EntityNotFoundException;
+import com.fhelipe.demoparkapi.exception.PasswordInvalidException;
+import com.fhelipe.demoparkapi.exception.UsernameUniqueViolationExcepetion;
 import com.fhelipe.demoparkapi.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,25 +19,29 @@ public class UsuarioService {
 
     @Transactional
     public Usuario salvar(Usuario usuario) {
-        return usuarioRepository.save(usuario);
+        try {
+            return usuarioRepository.save(usuario);
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            throw new UsernameUniqueViolationExcepetion(String.format("Username '%s' já cadastrado", usuario.getUsername()));
+        }
     }
 
     @Transactional(readOnly = true)
     public Usuario buscarPorId(Long id) {
         return usuarioRepository.findById(id).orElseThrow(
-                () -> new RuntimeException("Usuário não encontrado.")
+                () -> new EntityNotFoundException(String.format("Usuário id=%s não encontrado.", id))
         );
     }
 
     @Transactional
     public Usuario editarSenha(Long id, String senhaAtual, String novaSenha, String confirmaSenha) {
         if (!novaSenha.equals(confirmaSenha)) {
-            throw new RuntimeException("Nova senha não confere com confirmação de senha.");
+            throw new PasswordInvalidException("Nova senha não confere com confirmação de senha.");
         }
 
         Usuario user = buscarPorId(id);
         if(!user.getPassword().equals(senhaAtual)) {
-            throw new RuntimeException("Sua senha não confere.");
+            throw new PasswordInvalidException("Sua senha não confere.");
         }
 
         user.setPassword(novaSenha);
